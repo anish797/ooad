@@ -3,12 +3,14 @@ package com.markdowncollab.pattern.strategy;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
  * Concrete Strategy implementation using the CommonMark library for rendering markdown.
  */
 @Component
+@Primary
 public class CommonMarkRenderer implements MarkdownRenderStrategy {
     private final Parser parser;
     private final HtmlRenderer renderer;

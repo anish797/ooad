@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -190,12 +191,13 @@ public class EditorUI {
         String htmlContent = documentService.renderMarkdown(markdownText);
         
         // Apply CSS styling
-        htmlContent = wrapWithStyle(htmlContent);
-        
+        final String styledHtmlContent = wrapWithStyle(htmlContent);
+                
         // Update the preview
         Platform.runLater(() -> {
-            previewWebView.getEngine().loadContent(htmlContent);
+            previewWebView.getEngine().loadContent(styledHtmlContent);
         });
+
     }
     
     private String wrapWithStyle(String htmlContent) {
