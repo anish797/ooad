@@ -1,24 +1,39 @@
 package com.markdowncollab;
 
+import com.markdowncollab.ui.EditorUI;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
+import javafx.application.Platform;
 import javafx.stage.Stage;
 
 public class JavaFXApplication extends Application {
+    private ConfigurableApplicationContext springContext;
     
     @Override
-    public void start(Stage stage) {
-        // Your startup code here
-        Label label = new Label("Hello, JavaFX!");
-        Scene scene = new Scene(new StackPane(label), 640, 480);
-        stage.setScene(scene);
-        stage.setTitle("Markdown Editor");
-        stage.show();
+    public void init() {
+        // Start the Spring Boot application
+        springContext = new SpringApplicationBuilder(MarkdownCollabApplication.class)
+                .headless(false)
+                .run();
+    }
+    
+    @Override
+    public void start(Stage primaryStage) {
+        // Get the EditorUI from the Spring context
+        EditorUI editorUI = springContext.getBean(EditorUI.class);
+        editorUI.initialize(primaryStage);
+    }
+    
+    @Override
+    public void stop() {
+        // Close the Spring context when JavaFX application stops
+        springContext.close();
+        Platform.exit();
     }
     
     public static void main(String[] args) {
+        // Launch the JavaFX application
         launch(args);
     }
 }
