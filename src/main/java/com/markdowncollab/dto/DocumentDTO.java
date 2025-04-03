@@ -3,6 +3,7 @@ package com.markdowncollab.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 import com.markdowncollab.model.Document;
 
 public class DocumentDTO {
@@ -15,7 +16,9 @@ public class DocumentDTO {
     private LocalDateTime updatedAt;
     
     // Constructors
-    public DocumentDTO() {}
+    public DocumentDTO() {
+        this.collaborators = new ArrayList<>();
+    }
     
     public DocumentDTO(Document document) {
         this.id = document.getId();
@@ -28,6 +31,7 @@ public class DocumentDTO {
             this.owner = new UserDTO(document.getOwner());
         }
         
+        this.collaborators = new ArrayList<>();
         if (document.getCollaborators() != null) {
             this.collaborators = document.getCollaborators().stream()
                 .map(UserDTO::new)
@@ -56,4 +60,9 @@ public class DocumentDTO {
     
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    @Override
+    public String toString() {
+        return this.title != null ? this.title : "Untitled Document";
+    }
 }

@@ -67,7 +67,8 @@ public class EditorUI {
         BorderPane root = new BorderPane();
         
         // Create top menu bar
-        MenuBar menuBar = createMenuBar();
+        menuBar = new MenuBar(); // Change to class field
+        updateMenuBar(); // Call method to update menu bar
         root.setTop(menuBar);
         
         // Create center area with split pane for editor and preview
@@ -129,9 +130,12 @@ public class EditorUI {
             showLoginScreen();
         }
     }
-    
-    private MenuBar createMenuBar() {
-        MenuBar menuBar = new MenuBar();
+
+    private MenuBar menuBar;
+
+    private void updateMenuBar() {
+        // Clear existing menus
+        menuBar.getMenus().clear();
         
         // File menu
         Menu fileMenu = new Menu("File");
@@ -139,6 +143,80 @@ public class EditorUI {
         newItem.setOnAction(e -> createNewDocument());
         MenuItem openItem = new MenuItem("Open Document");
         openItem.setOnAction(e -> showOpenDocumentDialog());
+        MenuItem saveItem = new MenuItem("Save");
+        saveItem.setOnAction(e -> saveCurrentDocument());
+        
+        Menu exportMenu = new Menu("Export As");
+        MenuItem exportPdfItem = new MenuItem("PDF");
+        exportPdfItem.setOnAction(e -> exportDocument("pdf"));
+        MenuItem exportHtmlItem = new MenuItem("HTML");
+        exportHtmlItem.setOnAction(e -> exportDocument("html"));
+        MenuItem exportDocxItem = new MenuItem("DOCX");
+        exportDocxItem.setOnAction(e -> exportDocument("docx"));
+        exportMenu.getItems().addAll(exportPdfItem, exportHtmlItem, exportDocxItem);
+        
+        fileMenu.getItems().addAll(newItem, openItem, saveItem, new SeparatorMenuItem(), exportMenu);
+        
+        // Edit menu
+        Menu editMenu = new Menu("Edit");
+        MenuItem undoItem = new MenuItem("Undo");
+        undoItem.setOnAction(e -> undo());
+        MenuItem redoItem = new MenuItem("Redo");
+        redoItem.setOnAction(e -> redo());
+        editMenu.getItems().addAll(undoItem, redoItem);
+        
+        // View menu
+        Menu viewMenu = new Menu("View");
+        MenuItem versionHistoryItem = new MenuItem("Version History");
+        versionHistoryItem.setOnAction(e -> showVersionHistory());
+        CheckMenuItem syncScrollItem = new CheckMenuItem("Sync Scrolling");
+        syncScrollItem.setSelected(true);
+        viewMenu.getItems().addAll(versionHistoryItem, syncScrollItem);
+        
+        // User menu with current username
+        String username = "Not logged in";
+        if (userService.isAuthenticated()) {
+            UserDTO currentUser = userService.getCurrentUser();
+            if (currentUser != null) {
+                username = currentUser.getUsername();
+            }
+        }
+        
+        Menu userMenu = new Menu("User: " + username);
+        MenuItem loginItem = new MenuItem("Login");
+        loginItem.setOnAction(e -> showLoginScreen());
+        MenuItem logoutItem = new MenuItem("Logout");
+        logoutItem.setOnAction(e -> logout());
+        
+        // Disable the login menu item if already logged in
+        loginItem.setDisable(userService.isAuthenticated());
+        // Disable the logout menu item if not logged in
+        logoutItem.setDisable(!userService.isAuthenticated());
+        
+        userMenu.getItems().addAll(loginItem, logoutItem);
+        
+        // Add all menus to the menu bar
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, userMenu);
+        
+        // Update menu items based on application state
+        saveItem.setDisable(currentDocumentId == null);
+        undoItem.setDisable(currentDocumentId == null || !documentEditor.canUndo(currentDocumentId));
+        redoItem.setDisable(currentDocumentId == null || !documentEditor.canRedo(currentDocumentId));
+        versionHistoryItem.setDisable(currentDocumentId == null);
+        exportMenu.setDisable(currentDocumentId == null);
+    }
+
+    private MenuBar createMenuBar() {
+        MenuBar menuBar = new MenuBar();
+        
+        // File menu
+        Menu fileMenu = new Menu("File");
+        MenuItem newItem = new MenuItem("New Document");
+        newItem.setOnAction(e -> createNewDocument());
+        
+        MenuItem openItem = new MenuItem("Open Document");
+        openItem.setOnAction(e -> showOpenDocumentDialog());
+        
         MenuItem saveItem = new MenuItem("Save");
         saveItem.setOnAction(e -> saveCurrentDocument());
         
@@ -178,8 +256,44 @@ public class EditorUI {
         userMenu.getItems().addAll(loginItem, logoutItem);
         
         menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, userMenu);
+        
+        // Update menu item states based on authentication
+        updateMenuItemStates();
+        
         return menuBar;
     }
+    private void updateMenuItemStates() {
+        boolean isAuthenticated = userService.isAuthenticated();
+        
+        // Find menu items
+        Menu fileMenu = menuBar.getMenus().get(0);
+        MenuItem saveItem = fileMenu.getItems().get(2);
+        Menu exportMenu = (Menu) fileMenu.getItems().get(4);
+        
+        // Disable/enable save and export items based on authentication
+        saveItem.setDisable(!isAuthenticated);
+        for (MenuItem item : exportMenu.getItems()) {
+            item.setDisable(!isAuthenticated);
+        }
+        
+        // You might want to add similar logic for other menus like Edit
+        Menu editMenu = menuBar.getMenus().get(1);
+        editMenu.getItems().forEach(item -> item.setDisable(!isAuthenticated));
+    }
+    private void onAuthenticationChanged() {
+        updateMenuItemStates();
+        
+        if (userService.isAuthenticated()) {
+            loadUserDocuments();
+        } else {
+            // Clear current document and UI
+            currentDocumentId = null;
+            editorTextArea.clear();
+            collaboratorsList.getItems().clear();
+            primaryStage.setTitle("Collaborative Markdown Editor");
+        }
+    }
+        
     
     private void updatePreview(String markdownText) {
         if (markdownText == null || markdownText.isEmpty()) {
@@ -269,24 +383,32 @@ public class EditorUI {
             
             // Update UI
             Platform.runLater(() -> {
-                editorTextArea.setText(document.getContent());
-                primaryStage.setTitle(document.getTitle() + " - Collaborative Markdown Editor");
-                updatePreview(document.getContent());
-                
-                // Update collaborators list
-                collaboratorsList.getItems().clear();
-                document.getCollaborators().forEach(user -> 
-                    collaboratorsList.getItems().add(user.getDisplayName())
-                );
+                try {
+                    editorTextArea.setText(document.getContent());
+                    primaryStage.setTitle(document.getTitle() + " - Collaborative Markdown Editor");
+                    updatePreview(document.getContent());
+                    
+                    // Update collaborators list
+                    collaboratorsList.getItems().clear();
+                    if (document.getCollaborators() != null) {
+                        document.getCollaborators().forEach(user -> 
+                            collaboratorsList.getItems().add(user.getDisplayName())
+                        );
+                    }
+                    
+                    // Set current document ID
+                    currentDocumentId = documentId;
+                } catch (Exception e) {
+                    showAlert(Alert.AlertType.ERROR, "UI Error", 
+                            "Error updating UI", e.getMessage());
+                    e.printStackTrace();
+                }
             });
             
-            // Set current document ID
-            currentDocumentId = documentId;
-            
-            // TODO: Connect to WebSocket for real-time collaboration
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to load document", e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -447,9 +569,8 @@ public class EditorUI {
         });
         
         Optional<UserDTO> result = dialog.showAndWait();
-        
         result.ifPresent(user -> {
-            loadUserDocuments();
+            onAuthenticationChanged();
         });
     }
     
@@ -547,20 +668,16 @@ public class EditorUI {
     
     private void logout() {
         userService.logout();
-        
-        // Clear current document
-        currentDocumentId = null;
-        editorTextArea.clear();
-        collaboratorsList.getItems().clear();
-        primaryStage.setTitle("Collaborative Markdown Editor");
-        
-        // Show login screen
+        onAuthenticationChanged();
         showLoginScreen();
     }
-    
+        
     private void loadUserDocuments() {
         try {
             List<DocumentDTO> documents = documentService.getUserDocuments();
+            
+            // Update menu bar to show logged in username
+            updateMenuBar();
             
             if (!documents.isEmpty()) {
                 // Load the first document

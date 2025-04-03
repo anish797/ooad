@@ -1,6 +1,5 @@
 package com.markdowncollab.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.markdowncollab.dto.UserDTO;
@@ -8,20 +7,21 @@ import com.markdowncollab.exception.UserAlreadyExistsException;
 import com.markdowncollab.exception.UserNotFoundException;
 import com.markdowncollab.model.User;
 import com.markdowncollab.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class UserService implements UserDetailsService {
+public class UserService {
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -35,18 +35,6 @@ public class UserService implements UserDetailsService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
-    }
-
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                new ArrayList<>()
-        );
     }
 
     @Transactional
@@ -73,12 +61,24 @@ public class UserService implements UserDetailsService {
 
     public boolean login(String username, String password) {
         try {
+            // First, check if user exists
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            // Attempt authentication
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
+
+            // If authentication succeeds, set the context
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            
             return true;
+        } catch (AuthenticationException e) {
+            logger.error("Authentication failed: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
+            logger.error("Unexpected error during login", e);
             return false;
         }
     }
@@ -105,8 +105,9 @@ public class UserService implements UserDetailsService {
 
     public boolean isAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.isAuthenticated() &&
-                !authentication.getPrincipal().equals("anonymousUser");
+        return authentication != null && 
+               authentication.isAuthenticated() && 
+               !authentication.getPrincipal().equals("anonymousUser");
     }
 
     public UserDTO getCurrentUser() {
