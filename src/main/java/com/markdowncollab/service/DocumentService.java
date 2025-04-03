@@ -12,6 +12,8 @@ import com.markdowncollab.pattern.factory.DocumentExporterFactory;
 import com.markdowncollab.pattern.strategy.MarkdownRenderStrategy;
 import com.markdowncollab.repository.DocumentRepository;
 import com.markdowncollab.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DocumentService {
+    private static final Logger logger = LoggerFactory.getLogger(DocumentService.class);
 
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
@@ -70,15 +73,26 @@ public class DocumentService {
     
     @Transactional
     public void updateDocument(Long id, String content) {
-        Document document = findById(id);
-        checkDocumentAccess(document);
-        
-        // Update content
-        document.setContent(content);
-        documentRepository.save(document);
-        
-        // Create new version (could also be done with a version service)
-        document.createNewVersion(content, getCurrentUser());
+        try {
+            Document document = findById(id);
+            User currentUser = getCurrentUser();
+            
+            logger.info("Updating document {} by user {}", id, currentUser.getUsername());
+            
+            checkDocumentAccess(document);
+            
+            // Update content
+            document.setContent(content);
+            documentRepository.save(document);
+            
+            // Create new version
+            document.createNewVersion(content, currentUser);
+            
+            logger.info("Document {} updated successfully", id);
+        } catch (Exception e) {
+            logger.error("Error updating document", e);
+            throw e;
+        }
     }
     
     @Transactional
@@ -135,18 +149,43 @@ public class DocumentService {
     }
     
     public byte[] exportDocument(Long documentId, String format) throws Exception {
-        Document document = findById(documentId);
-        checkDocumentAccess(document);
-        
-        DocumentExporter exporter = DocumentExporterFactory.createExporter(format);
-        return exporter.export(document);
+        try {
+            Document document = findById(documentId);
+            User currentUser = getCurrentUser();
+            
+            logger.info("Exporting document {} in {} format by user {}", 
+                documentId, format, currentUser.getUsername());
+            
+            checkDocumentAccess(document);
+            
+            DocumentExporter exporter = DocumentExporterFactory.createExporter(format);
+            byte[] exportedContent = exporter.export(document);
+            
+            logger.info("Document {} exported successfully in {} format", documentId, format);
+            return exportedContent;
+        } catch (Exception e) {
+            logger.error("Error exporting document", e);
+            throw e;
+        }
     }
     
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication == null) {
+            logger.error("No authentication context found");
+            throw new AccessDeniedException("User not authenticated");
+        }
+        
         String username = authentication.getName();
-        return userRepository.findByUsername(username)
+        
+        try {
+            return userRepository.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("Current user not found"));
+        } catch (UserNotFoundException e) {
+            logger.error("User not found: {}", username);
+            throw e;
+        }
     }
     
     private void checkDocumentAccess(Document document) {
@@ -155,6 +194,8 @@ public class DocumentService {
         boolean isCollaborator = document.getCollaborators().contains(currentUser);
         
         if (!isOwner && !isCollaborator) {
+            logger.warn("Access denied for user {} to document {}", 
+                currentUser.getUsername(), document.getId());
             throw new AccessDeniedException("You don't have access to this document");
         }
     }
