@@ -36,6 +36,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 /**
  * Main UI class for the Markdown Editor application.
@@ -281,7 +285,7 @@ public class EditorUI {
         editMenu.getItems().forEach(item -> item.setDisable(!isAuthenticated));
     }
     private void onAuthenticationChanged() {
-        updateMenuItemStates();
+        updateMenuBar();
         
         if (userService.isAuthenticated()) {
             loadUserDocuments();
@@ -449,11 +453,56 @@ public class EditorUI {
         }
         
         try {
-            // For simplicity, export functionality is not fully implemented in the UI
-            // In a complete implementation, would save file to disk
+            // Export the document
             byte[] content = documentService.exportDocument(currentDocumentId, format);
-            showAlert(Alert.AlertType.INFORMATION, "Export Successful", 
-                    "Document exported successfully", "Exported " + content.length + " bytes.");
+            
+            // Open file chooser dialog
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Export Document");
+            
+            // Set default filename and extension
+            String defaultFileName = "";
+            switch (format.toLowerCase()) {
+                case "pdf":
+                    fileChooser.getExtensionFilters().add(
+                        new FileChooser.ExtensionFilter("PDF Files", "*.pdf")
+                    );
+                    defaultFileName = "document.pdf";
+                    break;
+                case "html":
+                    fileChooser.getExtensionFilters().add(
+                        new FileChooser.ExtensionFilter("HTML Files", "*.html")
+                    );
+                    defaultFileName = "document.html";
+                    break;
+                case "docx":
+                    fileChooser.getExtensionFilters().add(
+                        new FileChooser.ExtensionFilter("Word Documents", "*.docx")
+                    );
+                    defaultFileName = "document.docx";
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported export format");
+            }
+            
+            fileChooser.setInitialFileName(defaultFileName);
+            
+            // Show save dialog
+            File selectedFile = fileChooser.showSaveDialog(primaryStage);
+            
+            if (selectedFile != null) {
+                // Write content to file
+                try (FileOutputStream fos = new FileOutputStream(selectedFile)) {
+                    fos.write(content);
+                    
+                    // Show success message
+                    showAlert(Alert.AlertType.INFORMATION, "Export Successful", 
+                            "Document exported to " + selectedFile.getAbsolutePath(), null);
+                } catch (IOException e) {
+                    showAlert(Alert.AlertType.ERROR, "Export Error", 
+                            "Failed to save exported document", e.getMessage());
+                }
+            }
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Export Error", 
                     "Failed to export document", e.getMessage());
@@ -571,6 +620,7 @@ public class EditorUI {
         Optional<UserDTO> result = dialog.showAndWait();
         result.ifPresent(user -> {
             onAuthenticationChanged();
+            updateMenuBar(); // Ensure menu is fully updated
         });
     }
     
@@ -680,8 +730,14 @@ public class EditorUI {
             updateMenuBar();
             
             if (!documents.isEmpty()) {
-                // Load the first document
-                loadDocument(documents.get(0).getId());
+                // Load the first document and explicitly set currentDocumentId
+                Long firstDocumentId = documents.get(0).getId();
+                currentDocumentId = firstDocumentId;
+                loadDocument(firstDocumentId);
+            } else {
+                // If no documents, ensure menu items are updated
+                currentDocumentId = null;
+                updateMenuBar();
             }
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
