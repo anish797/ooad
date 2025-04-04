@@ -38,6 +38,7 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
 import java.io.File;
+import javafx.beans.value.ChangeListener;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -81,7 +82,9 @@ public class EditorUI {
         // Left side: Editor
         editorTextArea = new TextArea();
         editorTextArea.setWrapText(true);
-        editorTextArea.textProperty().addListener((obs, oldText, newText) -> {
+        
+        // Create text change listener
+        textChangeListener = (obs, oldText, newText) -> {
             // Update preview when text changes
             updatePreview(newText);
             
@@ -89,7 +92,10 @@ public class EditorUI {
             if (currentDocumentId != null) {
                 saveDocumentChanges();
             }
-        });
+        };
+        
+        // Add the listener
+        editorTextArea.textProperty().addListener(textChangeListener);
         
         VBox editorBox = new VBox(5);
         Label editorLabel = new Label("Markdown Editor");
@@ -134,6 +140,9 @@ public class EditorUI {
             showLoginScreen();
         }
     }
+    
+    // Add textChangeListener as a class field
+    private ChangeListener<String> textChangeListener;
 
     private MenuBar menuBar;
 
@@ -351,6 +360,28 @@ public class EditorUI {
     
     private void showOpenDocumentDialog() {
         try {
+            // Check for unsaved changes
+            if (currentDocumentId != null && hasUnsavedChanges()) {
+                Alert saveAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                saveAlert.setTitle("Unsaved Changes");
+                saveAlert.setHeaderText("Do you want to save changes to the current document?");
+                saveAlert.setContentText("Your changes will be lost if you don't save.");
+                
+                ButtonType saveButton = new ButtonType("Save");
+                ButtonType discardButton = new ButtonType("Discard");
+                ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+                
+                saveAlert.getButtonTypes().setAll(saveButton, discardButton, cancelButton);
+                
+                Optional<ButtonType> result = saveAlert.showAndWait();
+                
+                if (result.get() == cancelButton) {
+                    return; // User cancelled opening new document
+                } else if (result.get() == saveButton) {
+                    saveCurrentDocument(); // Explicitly save current document
+                }
+            }
+    
             List<DocumentDTO> documents = documentService.getUserDocuments();
             
             if (documents.isEmpty()) {
@@ -359,20 +390,20 @@ public class EditorUI {
                 return;
             }
             
+            // Explicitly log the order of documents
+            System.out.println("Documents in order:");
+            for (int i = 0; i < documents.size(); i++) {
+                System.out.println(i + ": ID " + documents.get(i).getId() + " - " + documents.get(i).getTitle());
+            }
+            
             ChoiceDialog<DocumentDTO> dialog = new ChoiceDialog<>(documents.get(0), documents);
             dialog.setTitle("Open Document");
             dialog.setHeaderText("Select a document to open");
             dialog.setContentText("Document:");
             
-            // Use toString to display document titles
-            dialog.setResultConverter(dialogButton -> {
-                if (dialogButton == ButtonType.OK) {
-                    return dialog.getSelectedItem();
-                }
-                return null;
-            });
-            
             dialog.showAndWait().ifPresent(document -> {
+                System.out.println("Selected document - ID: " + document.getId() + ", Title: " + document.getTitle());
+                saveDocumentChanges(); // Save any pending changes before loading new document
                 loadDocument(document.getId());
             });
         } catch (Exception e) {
@@ -381,34 +412,78 @@ public class EditorUI {
         }
     }
     
+    
+    private boolean hasUnsavedChanges() {
+        if (currentDocumentId == null) return false;
+        
+        try {
+            DocumentDTO currentDocument = documentService.getDocumentById(currentDocumentId);
+            return !currentDocument.getContent().equals(editorTextArea.getText());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
     private void loadDocument(Long documentId) {
         try {
+            // Extensive logging
+            System.out.println("=============================================");
+            System.out.println("LOADING DOCUMENT - START");
+            System.out.println("Current Document ID before load: " + currentDocumentId);
+            System.out.println("Attempting to load document with ID: " + documentId);
+    
+            // Ensure we're on the JavaFX Application Thread
+            if (!Platform.isFxApplicationThread()) {
+                Platform.runLater(() -> loadDocument(documentId));
+                return;
+            }
+    
+            // Explicitly save any changes in the current document
+            if (currentDocumentId != null) {
+                saveCurrentDocument();
+            }
+    
+            // Fetch the document details
             DocumentDTO document = documentService.getDocumentById(documentId);
             
-            // Update UI
-            Platform.runLater(() -> {
-                try {
-                    editorTextArea.setText(document.getContent());
-                    primaryStage.setTitle(document.getTitle() + " - Collaborative Markdown Editor");
-                    updatePreview(document.getContent());
-                    
-                    // Update collaborators list
-                    collaboratorsList.getItems().clear();
-                    if (document.getCollaborators() != null) {
-                        document.getCollaborators().forEach(user -> 
-                            collaboratorsList.getItems().add(user.getDisplayName())
-                        );
-                    }
-                    
-                    // Set current document ID
-                    currentDocumentId = documentId;
-                } catch (Exception e) {
-                    showAlert(Alert.AlertType.ERROR, "UI Error", 
-                            "Error updating UI", e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            // Log document details
+            System.out.println("Loaded document details:");
+            System.out.println("Title: " + document.getTitle());
+            System.out.println("Content length: " + document.getContent().length());
+            System.out.println("Content: " + document.getContent());
+    
+            // Disable text change listener temporarily to prevent recursive saves
+            editorTextArea.textProperty().removeListener(textChangeListener);
+    
+            // Clear any existing state
+            editorTextArea.clear();
+            collaboratorsList.getItems().clear();
             
+            // Update content and UI
+            editorTextArea.setText(document.getContent());
+            primaryStage.setTitle(document.getTitle() + " - Collaborative Markdown Editor");
+            updatePreview(document.getContent());
+            
+            // Update collaborators list
+            if (document.getCollaborators() != null) {
+                document.getCollaborators().forEach(user -> {
+                    System.out.println("Collaborator: " + user.getDisplayName());
+                    collaboratorsList.getItems().add(user.getDisplayName());
+                });
+            }
+            
+            // Set current document ID
+            currentDocumentId = documentId;
+            
+            // Re-enable text change listener
+            editorTextArea.textProperty().addListener(textChangeListener);
+            
+            // Trigger menu bar update
+            updateMenuBar();
+    
+            System.out.println("Document loaded successfully. Current Document ID: " + currentDocumentId);
+            System.out.println("LOADING DOCUMENT - END");
+            System.out.println("=============================================");
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to load document", e.getMessage());
@@ -416,20 +491,29 @@ public class EditorUI {
         }
     }
     
+    
+    
     private void saveCurrentDocument() {
         if (currentDocumentId == null) {
-            showAlert(Alert.AlertType.WARNING, "No Document", 
-                    "No document is currently open", "Open or create a document first.");
+            System.out.println("No document to save - returning");
             return;
         }
         
         try {
-            documentService.updateDocument(currentDocumentId, editorTextArea.getText());
-            showAlert(Alert.AlertType.INFORMATION, "Success", 
-                    "Document saved successfully", null);
+            String currentContent = editorTextArea.getText();
+            
+            System.out.println("Saving current document:");
+            System.out.println("Document ID: " + currentDocumentId);
+            System.out.println("Content length: " + currentContent.length());
+            System.out.println("Content: " + currentContent);
+            
+            documentService.updateDocument(currentDocumentId, currentContent);
+            
+            System.out.println("Document saved successfully");
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to save document", e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -437,7 +521,14 @@ public class EditorUI {
         // Auto-save functionality
         if (currentDocumentId != null) {
             try {
-                documentService.updateDocument(currentDocumentId, editorTextArea.getText());
+                String currentContent = editorTextArea.getText();
+                
+                // Only save if content has actually changed
+                DocumentDTO currentDocument = documentService.getDocumentById(currentDocumentId);
+                if (!currentContent.equals(currentDocument.getContent())) {
+                    documentService.updateDocument(currentDocumentId, currentContent);
+                    System.out.println("Auto-saved document ID: " + currentDocumentId);
+                }
             } catch (Exception e) {
                 // Silently log error, don't disrupt user with alerts for auto-save
                 System.err.println("Auto-save failed: " + e.getMessage());

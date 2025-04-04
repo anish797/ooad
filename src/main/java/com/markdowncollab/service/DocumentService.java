@@ -47,12 +47,23 @@ public class DocumentService {
     public DocumentDTO getDocumentById(Long id) {
         Document document = findById(id);
         checkDocumentAccess(document);
+        
+        // Log access details
+        System.out.println("Accessing document - ID: " + id + ", Title: " + document.getTitle());
+        
         return new DocumentDTO(document);
     }
-    
+        
     public List<DocumentDTO> getUserDocuments() {
         User currentUser = getCurrentUser();
         List<Document> documents = documentRepository.findAllAccessibleByUser(currentUser);
+        
+        // Log detailed information about accessible documents
+        System.out.println("Fetching user documents for user: " + currentUser.getUsername());
+        documents.forEach(doc -> 
+            System.out.println("Document - ID: " + doc.getId() + ", Title: " + doc.getTitle())
+        );
+        
         return documents.stream()
                 .map(DocumentDTO::new)
                 .collect(Collectors.toList());
@@ -79,6 +90,10 @@ public class DocumentService {
             
             logger.info("Updating document {} by user {}", id, currentUser.getUsername());
             
+            // Log current document state before update
+            logger.info("Before update - Document content: {}", document.getContent());
+            logger.info("Incoming content: {}", content);
+            
             checkDocumentAccess(document);
             
             // Update content
@@ -88,6 +103,8 @@ public class DocumentService {
             // Create new version
             document.createNewVersion(content, currentUser);
             
+            // Log after update
+            logger.info("After update - Document content: {}", document.getContent());
             logger.info("Document {} updated successfully", id);
         } catch (Exception e) {
             logger.error("Error updating document", e);

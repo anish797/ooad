@@ -16,8 +16,11 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     Optional<Document> findByIdWithCollaborators(@Param("id") Long id);
     
     // Update the existing query to fetch collaborators eagerly
-    @Query("SELECT DISTINCT d FROM Document d LEFT JOIN FETCH d.collaborators WHERE d.owner = :user OR :user MEMBER OF d.collaborators")
+    @Query("SELECT DISTINCT d FROM Document d LEFT JOIN FETCH d.collaborators " +
+       "WHERE d.owner = :user OR :user MEMBER OF d.collaborators " +
+       "ORDER BY d.updatedAt DESC")
     List<Document> findAllAccessibleByUser(@Param("user") User user);
+
     
     List<Document> findByOwner(User owner);
     List<Document> findByCollaboratorsContaining(User user);
