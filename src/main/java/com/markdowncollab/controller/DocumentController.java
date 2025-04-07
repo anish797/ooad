@@ -45,9 +45,21 @@ public class DocumentController {
         return ResponseEntity.ok(documentId);
     }
 
+    // Regular update without version creation (for autosaves)
     @PutMapping("/{id}")
     public ResponseEntity<?> updateDocument(@PathVariable Long id, @RequestParam String content) {
         documentService.updateDocument(id, content);
+        return ResponseEntity.ok().build();
+    }
+    
+    // Explicit save with version creation
+    @PostMapping("/{id}/save")
+    public ResponseEntity<?> saveDocumentWithVersion(
+            @PathVariable Long id, 
+            @RequestParam String content,
+            @RequestParam String versionDescription) {
+        
+        documentService.saveDocumentWithVersion(id, content, versionDescription);
         return ResponseEntity.ok().build();
     }
 

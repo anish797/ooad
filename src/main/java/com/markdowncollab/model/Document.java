@@ -102,16 +102,22 @@ public class Document {
     }
     
     // Version tracking methods
-    public void createNewVersion(String content, User author) {
+    public void createNewVersion(String content, User author, String description) {
         Version version = new Version();
         version.setDocument(this);
         version.setContent(content);
         version.setAuthor(author);
+        version.setDescription(description != null ? description : "Manual save");
         version.setCreatedAt(LocalDateTime.now());
         versions.add(version);
         
         // Update the current content
         this.content = content;
+    }
+    
+    // Maintain backward compatibility with existing code
+    public void createNewVersion(String content, User author) {
+        createNewVersion(content, author, "Auto-saved version");
     }
     
     // Comment methods

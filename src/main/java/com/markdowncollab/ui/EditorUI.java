@@ -41,6 +41,9 @@ import java.io.File;
 import javafx.beans.value.ChangeListener;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import com.markdowncollab.model.Version;
+import com.markdowncollab.service.VersionService;
+import javafx.scene.control.ListCell;
 
 /**
  * Main UI class for the Markdown Editor application.
@@ -51,7 +54,8 @@ public class EditorUI {
     private final DocumentService documentService;
     private final UserService userService;
     private final DocumentEditor documentEditor;
-    
+    private final VersionService versionService;
+
     private Stage primaryStage;
     private TextArea editorTextArea;
     private WebView previewWebView;
@@ -59,11 +63,14 @@ public class EditorUI {
     private Long currentDocumentId;
     
     @Autowired
-    public EditorUI(DocumentService documentService, UserService userService, DocumentEditor documentEditor) {
+    public EditorUI(DocumentService documentService, UserService userService, DocumentEditor documentEditor, VersionService versionService) {
         this.documentService = documentService;
         this.userService = userService;
         this.documentEditor = documentEditor;
+        this.versionService = versionService;
     }
+
+
     
     public void initialize(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -500,16 +507,30 @@ public class EditorUI {
         }
         
         try {
-            String currentContent = editorTextArea.getText();
+            // Create a dialog to get version description
+            TextInputDialog dialog = new TextInputDialog("Manual save");
+            dialog.setTitle("Save Document");
+            dialog.setHeaderText("Save document with version");
+            dialog.setContentText("Enter version description:");
             
-            System.out.println("Saving current document:");
-            System.out.println("Document ID: " + currentDocumentId);
-            System.out.println("Content length: " + currentContent.length());
-            System.out.println("Content: " + currentContent);
+            Optional<String> result = dialog.showAndWait();
             
-            documentService.updateDocument(currentDocumentId, currentContent);
-            
-            System.out.println("Document saved successfully");
+            if (result.isPresent()) {
+                String currentContent = editorTextArea.getText();
+                String versionDescription = result.get();
+                
+                System.out.println("Saving current document with version:");
+                System.out.println("Document ID: " + currentDocumentId);
+                System.out.println("Version description: " + versionDescription);
+                
+                // Use the new method that creates a version
+                documentService.saveDocumentWithVersion(currentDocumentId, currentContent, versionDescription);
+                
+                showAlert(Alert.AlertType.INFORMATION, "Document Saved", 
+                        "Document saved successfully", "A new version has been created.");
+                
+                System.out.println("Document saved successfully with version");
+            }
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to save document", e.getMessage());
@@ -517,8 +538,9 @@ public class EditorUI {
         }
     }
     
+    // Update saveDocumentChanges method
     private void saveDocumentChanges() {
-        // Auto-save functionality
+        // Auto-save functionality - now using regular update without version creation
         if (currentDocumentId != null) {
             try {
                 String currentContent = editorTextArea.getText();
@@ -527,7 +549,7 @@ public class EditorUI {
                 DocumentDTO currentDocument = documentService.getDocumentById(currentDocumentId);
                 if (!currentContent.equals(currentDocument.getContent())) {
                     documentService.updateDocument(currentDocumentId, currentContent);
-                    System.out.println("Auto-saved document ID: " + currentDocumentId);
+                    System.out.println("Auto-saved document ID: " + currentDocumentId + " (no version created)");
                 }
             } catch (Exception e) {
                 // Silently log error, don't disrupt user with alerts for auto-save
@@ -535,6 +557,7 @@ public class EditorUI {
             }
         }
     }
+    
     
     private void exportDocument(String format) {
         if (currentDocumentId == null) {
@@ -607,9 +630,84 @@ public class EditorUI {
             return;
         }
         
-        // In a complete implementation, would show a version history dialog
-        showAlert(Alert.AlertType.INFORMATION, "Version History", 
-                "Version history feature", "This feature is not fully implemented in the demo.");
+        try {
+            // Get versions from service
+            List<Version> versions = versionService.getDocumentVersions(currentDocumentId);
+            
+            if (versions.isEmpty()) {
+                showAlert(Alert.AlertType.INFORMATION, "No Versions", 
+                        "No versions found", "Save the document to create a version.");
+                return;
+            }
+            
+            // Create a dialog to display versions
+            Dialog<Version> dialog = new Dialog<>();
+            dialog.setTitle("Version History");
+            dialog.setHeaderText("Document Version History");
+            
+            // Create a ListView to show versions
+            ListView<Version> versionListView = new ListView<>();
+            versionListView.setPrefWidth(400);
+            versionListView.setPrefHeight(300);
+            
+            // Define a custom cell factory using anonymous inner class
+            versionListView.setCellFactory(param -> new ListCell<Version>() {
+                @Override
+                protected void updateItem(Version version, boolean empty) {
+                    super.updateItem(version, empty);
+                    if (empty || version == null) {
+                        setText(null);
+                    } else {
+                        setText(version.getCreatedAt() + " - " + version.getDescription() + 
+                                " (by " + version.getAuthor().getUsername() + ")");
+                    }
+                }
+            });
+            
+            // Add versions to the list view
+            versionListView.getItems().addAll(versions);
+            
+            // Add buttons
+            ButtonType restoreButtonType = new ButtonType("Restore", ButtonBar.ButtonData.OK_DONE);
+            ButtonType closeButtonType = ButtonType.CLOSE;
+            dialog.getDialogPane().getButtonTypes().addAll(restoreButtonType, closeButtonType);
+            
+            // Enable restore button only when a version is selected
+            Node restoreButton = dialog.getDialogPane().lookupButton(restoreButtonType);
+            restoreButton.setDisable(true);
+            
+            versionListView.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
+                restoreButton.setDisable(newVal == null);
+            });
+            
+            // Set content
+            dialog.getDialogPane().setContent(versionListView);
+            
+            // Set result converter
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == restoreButtonType) {
+                    return versionListView.getSelectionModel().getSelectedItem();
+                }
+                return null;
+            });
+            
+            // Show dialog and handle result
+            Optional<Version> result = dialog.showAndWait();
+            result.ifPresent(version -> {
+                try {
+                    versionService.restoreVersion(version.getId(), userService.getCurrentUser().getId());
+                    loadDocument(currentDocumentId);
+                    showAlert(Alert.AlertType.INFORMATION, "Version Restored", 
+                            "Version has been restored", null);
+                } catch (Exception e) {
+                    showAlert(Alert.AlertType.ERROR, "Error", 
+                            "Failed to restore version", e.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to load version history", e.getMessage());
+        }
     }
     
     private void showInviteDialog() {
