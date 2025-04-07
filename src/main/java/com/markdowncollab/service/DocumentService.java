@@ -82,6 +82,10 @@ public class DocumentService {
         return savedDocument.getId();
     }
     
+    /**
+     * Updates document content without creating a version.
+     * Used for auto-saves and routine updates.
+     */
     @Transactional
     public void updateDocument(Long id, String content) {
         try {
@@ -91,8 +95,8 @@ public class DocumentService {
             logger.info("Updating document {} by user {}", id, currentUser.getUsername());
             
             // Log current document state before update
-            logger.info("Before update - Document content: {}", document.getContent());
-            logger.info("Incoming content: {}", content);
+            logger.debug("Before update - Document content: {}", document.getContent());
+            logger.debug("Incoming content: {}", content);
             
             checkDocumentAccess(document);
             
@@ -100,14 +104,38 @@ public class DocumentService {
             document.setContent(content);
             documentRepository.save(document);
             
-            // Create new version
-            document.createNewVersion(content, currentUser);
-            
-            // Log after update
-            logger.info("After update - Document content: {}", document.getContent());
             logger.info("Document {} updated successfully", id);
         } catch (Exception e) {
             logger.error("Error updating document", e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Saves document content and creates a version.
+     * Used for explicit saves when user requests a save operation.
+     */
+    @Transactional
+    public void saveDocumentWithVersion(Long id, String content, String versionDescription) {
+        try {
+            Document document = findById(id);
+            User currentUser = getCurrentUser();
+            
+            logger.info("Saving document {} with new version by user {}", id, currentUser.getUsername());
+            
+            checkDocumentAccess(document);
+            
+            // Update content
+            document.setContent(content);
+            
+            // Create new version
+            document.createNewVersion(content, currentUser, versionDescription);
+            
+            documentRepository.save(document);
+            
+            logger.info("Document {} saved with new version successfully", id);
+        } catch (Exception e) {
+            logger.error("Error saving document with version", e);
             throw e;
         }
     }
