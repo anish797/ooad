@@ -16,6 +16,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
+import javafx.scene.web.WebEngine;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ChoiceDialog;
@@ -69,18 +71,33 @@ public class EditorUI {
         this.documentEditor = documentEditor;
         this.versionService = versionService;
     }
-
-
     
     public void initialize(Stage primaryStage) {
         this.primaryStage = primaryStage;
         
+        // Apply dark theme CSS
+        Scene scene = createScene();
+        scene.getStylesheets().add(getClass().getResource("/css/dark-theme.css").toExternalForm());
+        
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Collaborative Markdown Editor");
+        primaryStage.show();
+        
+        // Check if user is authenticated
+        if (userService.isAuthenticated()) {
+            loadUserDocuments();
+        } else {
+            showLoginScreen();
+        }
+    }
+    
+    private Scene createScene() {
         // Create the main layout
         BorderPane root = new BorderPane();
         
         // Create top menu bar
-        menuBar = new MenuBar(); // Change to class field
-        updateMenuBar(); // Call method to update menu bar
+        menuBar = new MenuBar();
+        updateMenuBar();
         root.setTop(menuBar);
         
         // Create center area with split pane for editor and preview
@@ -89,6 +106,7 @@ public class EditorUI {
         // Left side: Editor
         editorTextArea = new TextArea();
         editorTextArea.setWrapText(true);
+        editorTextArea.getStyleClass().add("markdown-editor");
         
         // Create text change listener
         textChangeListener = (obs, oldText, newText) -> {
@@ -106,13 +124,21 @@ public class EditorUI {
         
         VBox editorBox = new VBox(5);
         Label editorLabel = new Label("Markdown Editor");
+        editorLabel.getStyleClass().add("section-header");
         editorBox.getChildren().addAll(editorLabel, editorTextArea);
         editorBox.setPadding(new Insets(10));
         
         // Right side: Preview
         previewWebView = new WebView();
+        previewWebView.getStyleClass().add("markdown-preview");
+        
+        // Inject custom CSS for the web view (dark theme for the preview)
+        WebEngine engine = previewWebView.getEngine();
+        engine.setUserStyleSheetLocation(getClass().getResource("/css/preview-dark.css").toExternalForm());
+        
         VBox previewBox = new VBox(5);
         Label previewLabel = new Label("Preview");
+        previewLabel.getStyleClass().add("section-header");
         previewBox.getChildren().addAll(previewLabel, previewWebView);
         previewBox.setPadding(new Insets(10));
         
@@ -124,8 +150,10 @@ public class EditorUI {
         VBox rightSidebar = new VBox(10);
         rightSidebar.setPadding(new Insets(10));
         rightSidebar.setPrefWidth(200);
+        rightSidebar.getStyleClass().add("sidebar");
         
         Label collaboratorsLabel = new Label("Collaborators");
+        collaboratorsLabel.getStyleClass().add("section-header");
         collaboratorsList = new ListView<>();
         Button inviteButton = new Button("Invite Collaborator");
         inviteButton.setMaxWidth(Double.MAX_VALUE);
@@ -134,20 +162,10 @@ public class EditorUI {
         rightSidebar.getChildren().addAll(collaboratorsLabel, collaboratorsList, inviteButton);
         root.setRight(rightSidebar);
         
-        // Create the scene
-        Scene scene = new Scene(root, 1200, 800);
-        primaryStage.setTitle("Collaborative Markdown Editor");
-        primaryStage.setScene(scene);
-        primaryStage.show();
-        
-        // Check if user is authenticated
-        if (userService.isAuthenticated()) {
-            loadUserDocuments();
-        } else {
-            showLoginScreen();
-        }
-    }
-    
+        // Create the scene with appropriate size
+        return new Scene(root, 1200, 800);
+    }    
+
     // Add textChangeListener as a class field
     private ChangeListener<String> textChangeListener;
 
@@ -336,13 +354,16 @@ public class EditorUI {
     
     private String wrapWithStyle(String htmlContent) {
         return "<html><head><style>\n" +
-                "body { font-family: Arial, sans-serif; padding: 20px; }\n" +
-                "pre { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }\n" +
-                "code { font-family: monospace; }\n" +
-                "h1, h2, h3, h4, h5, h6 { color: #333; }\n" +
-                "a { color: #0066cc; }\n" +
-                "img { max-width: 100%; }\n" +
-                "blockquote { border-left: 4px solid #ddd; padding-left: 10px; color: #666; }\n" +
+                "body { background-color: #2b2b2b; color: #f0f0f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }\n" +
+                "pre { background-color: #363636; padding: 10px; border-radius: 5px; }\n" +
+                "code { font-family: monospace; background-color: #363636; padding: 2px 4px; border-radius: 3px; }\n" +
+                "h1, h2, h3, h4, h5, h6 { color: #e0e0e0; }\n" +
+                "a { color: #6495ED; }\n" +
+                "blockquote { border-left: 4px solid #555; padding-left: 10px; color: #aaa; }\n" +
+                "table { border-collapse: collapse; width: 100%; }\n" +
+                "th, td { border: 1px solid #555; padding: 8px; }\n" +
+                "th { background-color: #3c3f41; }\n" +
+                "tr:nth-child(even) { background-color: #323232; }\n" +
                 "</style></head><body>\n" +
                 htmlContent +
                 "</body></html>";
@@ -925,6 +946,11 @@ public class EditorUI {
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
+        
+        // Apply dark theme to the dialog
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.getStylesheets().add(getClass().getResource("/css/dark-theme.css").toExternalForm());
+        
         alert.showAndWait();
     }
 }
