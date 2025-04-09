@@ -433,36 +433,13 @@ public class EditorUI {
     
     private void loadDocument(Long documentId) {
         try {
-            // Extensive logging
-            System.out.println("=============================================");
-            System.out.println("LOADING DOCUMENT - START");
-            System.out.println("Current Document ID before load: " + currentDocumentId);
-            System.out.println("Attempting to load document with ID: " + documentId);
-    
-            // Ensure we're on the JavaFX Application Thread
-            if (!Platform.isFxApplicationThread()) {
-                Platform.runLater(() -> loadDocument(documentId));
-                return;
-            }
-    
-            // Explicitly save any changes in the current document
-            if (currentDocumentId != null) {
-                saveCurrentDocument();
-            }
-    
             // Fetch the document details
             DocumentDTO document = documentService.getDocumentById(documentId);
             
-            // Log document details
-            System.out.println("Loaded document details:");
-            System.out.println("Title: " + document.getTitle());
-            System.out.println("Content length: " + document.getContent().length());
-            System.out.println("Content: " + document.getContent());
-    
             // Disable text change listener temporarily to prevent recursive saves
             editorTextArea.textProperty().removeListener(textChangeListener);
-    
-            // Clear any existing state
+            
+            // Clear any existing content
             editorTextArea.clear();
             collaboratorsList.getItems().clear();
             
@@ -473,32 +450,25 @@ public class EditorUI {
             
             // Update collaborators list
             if (document.getCollaborators() != null) {
-                document.getCollaborators().forEach(user -> {
-                    System.out.println("Collaborator: " + user.getDisplayName());
-                    collaboratorsList.getItems().add(user.getDisplayName());
-                });
+                document.getCollaborators().forEach(user -> 
+                    collaboratorsList.getItems().add(user.getDisplayName())
+                );
             }
             
             // Set current document ID
             currentDocumentId = documentId;
             
-            // Re-enable text change listener
+            // Re-enable text change listener AFTER setting content
             editorTextArea.textProperty().addListener(textChangeListener);
             
-            // Trigger menu bar update
+            // Update menu bar
             updateMenuBar();
-    
-            System.out.println("Document loaded successfully. Current Document ID: " + currentDocumentId);
-            System.out.println("LOADING DOCUMENT - END");
-            System.out.println("=============================================");
+            
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to load document", e.getMessage());
-            e.printStackTrace();
         }
     }
-    
-    
     
     private void saveCurrentDocument() {
         if (currentDocumentId == null) {

@@ -1,0 +1,124 @@
+.root {
+  -fx-background-color: #2e2e2e;
+  -fx-font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Menu styling */
+.menu-bar {
+  -fx-background-color: #3c3f41;
+  -fx-text-fill: #f0f0f0;
+}
+
+.menu-bar .label {
+  -fx-text-fill: #f0f0f0;
+}
+
+.menu-item {
+  -fx-background-color: #3c3f41;
+}
+
+.menu-item .label {
+  -fx-text-fill: #f0f0f0;
+}
+
+.menu-item:hover {
+  -fx-background-color: #4e5254;
+}
+
+.context-menu {
+  -fx-background-color: #3c3f41;
+  -fx-border-color: #646464;
+}
+
+/* Text area styling */
+.text-area {
+  -fx-background-color: #2b2b2b;
+  -fx-text-fill: #f0f0f0;
+  -fx-control-inner-background: #2b2b2b;
+  -fx-border-color: #646464;
+  -fx-border-width: 1px;
+  -fx-highlight-fill: #4e5254;
+}
+
+.text-area .content {
+  -fx-background-color: #2b2b2b;
+}
+
+/* WebView styling - for markdown preview */
+.web-view {
+  -fx-border-color: #646464;
+  -fx-border-width: 1px;
+}
+
+/* List view styling - for collaborators */
+.list-view {
+  -fx-background-color: #3c3f41;
+  -fx-control-inner-background: #3c3f41;
+  -fx-text-fill: #f0f0f0;
+  -fx-border-color: #646464;
+}
+
+.list-cell {
+  -fx-background-color: #3c3f41;
+  -fx-text-fill: #f0f0f0;
+}
+
+.list-cell:filled:selected {
+  -fx-background-color: #4e5254;
+}
+
+.list-cell:filled:hover {
+  -fx-background-color: #4e5254;
+}
+
+/* Button styling */
+.button {
+  -fx-background-color: #3c3f41;
+  -fx-text-fill: #f0f0f0;
+  -fx-border-color: #646464;
+  -fx-border-radius: 3px;
+  -fx-background-radius: 3px;
+}
+
+.button:hover {
+  -fx-background-color: #4e5254;
+}
+
+/* Split pane styling */
+.split-pane {
+  -fx-background-color: #2e2e2e;
+}
+
+.split-pane-divider {
+  -fx-background-color: #646464;
+  -fx-padding: 0 1 0 1;
+}
+
+/* Labels */
+.label {
+  -fx-text-fill: #f0f0f0;
+}
+
+/* Dialog styling */
+.dialog-pane {
+  -fx-background-color: #2e2e2e;
+}
+
+.dialog-pane .label {
+  -fx-text-fill: #f0f0f0;
+}
+
+.dialog-pane:header .header-panel {
+  -fx-background-color: #3c3f41;
+}
+
+.dialog-pane:header .header-panel .label {
+  -fx-text-fill: #f0f0f0;
+  -fx-font-weight: bold;
+}
+
+/* Tooltip styling */
+.tooltip {
+  -fx-background-color: #3c3f41;
+  -fx-text-fill: #f0f0f0;
+}

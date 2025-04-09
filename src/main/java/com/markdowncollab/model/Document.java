@@ -95,6 +95,7 @@ public class Document {
     // Collaboration methods
     public void addCollaborator(User user) {
         collaborators.add(user);
+        user.getCollaboratingDocuments().add(this);
     }
     
     public void removeCollaborator(User user) {
