@@ -159,9 +159,16 @@ public class DocumentService {
             return false;
         }
         
-        // Add collaborator
+        // Add collaborator - Make sure this correctly updates both sides of the relationship
         document.addCollaborator(user);
+        
+        // Save the document to persist the changes
         documentRepository.save(document);
+        
+        System.out.println("Added " + user.getUsername() + " as collaborator to document ID: " + 
+                        documentId + " with title: " + document.getTitle());
+        System.out.println("Document now has " + document.getCollaborators().size() + " collaborators");
+        
         return true;
     }
     
@@ -233,14 +240,31 @@ public class DocumentService {
         }
     }
     
+    @Transactional(readOnly = true)
     private void checkDocumentAccess(Document document) {
         User currentUser = getCurrentUser();
         boolean isOwner = document.getOwner().getId().equals(currentUser.getId());
-        boolean isCollaborator = document.getCollaborators().contains(currentUser);
+        
+        // More detailed check for collaborator status
+        boolean isCollaborator = false;
+        for (User collaborator : document.getCollaborators()) {
+            if (collaborator.getId().equals(currentUser.getId())) {
+                isCollaborator = true;
+                break;
+            }
+        }
+        
+        System.out.println("Access check for user: " + currentUser.getUsername() + 
+                        " (ID: " + currentUser.getId() + ")");
+        System.out.println("Document owner: " + document.getOwner().getUsername() + 
+                        " (ID: " + document.getOwner().getId() + ")");
+        System.out.println("Is owner: " + isOwner);
+        System.out.println("Is collaborator: " + isCollaborator);
+        System.out.println("Collaborators: " + document.getCollaborators().stream()
+                        .map(u -> u.getUsername() + " (ID: " + u.getId() + ")")
+                        .collect(Collectors.joining(", ")));
         
         if (!isOwner && !isCollaborator) {
-            logger.warn("Access denied for user {} to document {}", 
-                currentUser.getUsername(), document.getId());
             throw new AccessDeniedException("You don't have access to this document");
         }
     }
