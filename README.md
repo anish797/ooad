@@ -1,4 +1,4 @@
-# 📝 Collaborative Markdown Editor
+# Collaborative Markdown Editor
 
 <div align="center">
 
@@ -13,19 +13,19 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- **🤝 Real-time Collaboration** - Multiple users edit simultaneously with live updates
-- **📝 Rich Markdown Editor** - Split-pane interface with live preview and dark theme
-- **📚 Version Control** - Track changes, create versions, and restore previous states
-- **👥 User Management** - Secure authentication and collaborator permissions
-- **📤 Multiple Exports** - Export to PDF, HTML, and DOCX formats
-- **↩️ Undo/Redo** - Command pattern implementation for text operations
-- **🔄 Auto-save** - Continuous saving with manual version creation
+- **Real-time Collaboration** - Multiple users edit simultaneously with live updates
+- **Rich Markdown Editor** - Split-pane interface with live preview and dark theme
+- **Version Control** - Track changes, create versions, and restore previous states
+- **User Management** - Secure authentication and collaborator permissions
+- **Multiple Exports** - Export to PDF, HTML, and DOCX formats
+- **Undo/Redo** - Command pattern implementation for text operations
+- **Auto-save** - Continuous saving with manual version creation
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Java 21+
@@ -55,7 +55,7 @@
    ```
 ---
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 - **Backend**: Spring Boot 3.2.3, Spring Security, WebSocket
 - **Frontend**: JavaFX 21.0.2 with WebView
@@ -63,7 +63,5 @@
 - **Markdown**: CommonMark, Flexmark
 
 ---
-
-**Built with Spring Boot + JavaFX**
 
 </div>
