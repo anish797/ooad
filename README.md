@@ -1,6 +1,5 @@
 # Collaborative Markdown Editor
 
-<div align="center">
 
 ![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen?style=for-the-badge&logo=spring&logoColor=white)
@@ -9,7 +8,6 @@
 
 **Real-time collaborative markdown editor with JavaFX desktop client and Spring Boot backend**
 
-</div>
 
 ---
 
