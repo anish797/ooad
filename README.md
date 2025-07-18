@@ -57,7 +57,7 @@
 
 ## Tech Stack
 
-- **Backend**: Spring Boot 3.2.3, Spring Security, WebSocket
+- **Backend**: Spring Boot 3.2.3, Spring Security
 - **Frontend**: JavaFX 21.0.2 with WebView
 - **Database**: PostgreSQL
 - **Markdown**: CommonMark, Flexmark
